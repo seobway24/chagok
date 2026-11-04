@@ -1,0 +1,68 @@
+차곡 - 팟캐스트 (chagok) — 오픈소스 및 외부 구성요소 고지
+=========================================================
+
+이 앱과 함께 제출하는 시연 영상에 쓰인 외부 구성요소와 그 라이선스입니다.
+(공모전 약관 제7조 7항: 오픈소스·외부 자료의 출처 명시)
+
+
+1. 앱(APK)에 들어가는 것
+------------------------
+
+Pretendard (글꼴, Medium/SemiBold/Bold/ExtraBold)
+  Copyright (c) 2021, Kil Hyung-jin (https://github.com/orioncactus/pretendard)
+  SIL Open Font License 1.1 — https://openfontlicense.org
+  위치: feature/onair/src/main/res/font/
+
+ZXing core 3.5.3 (QR 코드 생성)
+  Copyright ZXing authors — https://github.com/zxing/zxing
+  Apache License 2.0
+
+Kotlin 표준 라이브러리 2.0.0, kotlinx.coroutines 1.8.1
+  Copyright JetBrains s.r.o. and Kotlin Programming Language contributors
+  Apache License 2.0
+
+AndroidX (core-ktx 1.13.1, lifecycle 2.8.7, activity-compose 1.9.3),
+Jetpack Compose (BOM 2024.04.01: ui, material3)
+  Copyright The Android Open Source Project
+  Apache License 2.0
+
+Pleos Playground SDK (Vehicle 2.3.2, SpeechToText 3.3.1, TextToSpeech 3.3.1,
+LLM 2.1.3.2, NaviHelper 3.0.5)
+  현대자동차그룹 Pleos 플랫폼 SDK. 오픈소스가 아니며 공모전·Pleos 개발자
+  이용 약관에 따라 사용합니다.
+
+
+2. 빌드·테스트에만 쓰고 APK 에 들어가지 않는 것
+------------------------------------------------
+
+JUnit 4.13.2 — Eclipse Public License 1.0
+kotlinx-coroutines-test 1.8.1 — Apache License 2.0
+Android Gradle Plugin 8.8.2, Kotlin Gradle Plugin 2.0.0 — Apache License 2.0
+
+
+3. 시연·홍보 영상 제작에 쓴 것 (영상에만 포함, 앱에는 없음)
+------------------------------------------------------------
+
+ACE-Step 1.5 XL turbo (배경 음악 생성) — MIT License
+  https://github.com/ace-step (ACE-Step 1.5 저장소)
+  Qwen3 텍스트 인코더(0.6B, 4B) — Apache License 2.0
+  프롬프트에 실존 곡·가수 이름을 넣지 않았습니다.
+
+ComfyUI (생성 실행 도구, 배포물 아님) — GPL-3.0
+
+Pretendard — 영상 자막·타이포그래피 (위 1번과 같은 OFL 1.1)
+
+ffmpeg (영상 합성 도구, 배포물 아님) — LGPL-2.1+/GPL
+
+MiniMax Hailuo H3 (영상 생성)
+  시연·홍보 영상의 가족 재연 장면(사람이 나오는 컷)을 이 모델로 만들었습니다.
+  앱 화면 컷은 모두 에뮬레이터 실제 캡처입니다.
+  이용 조건(이용 지역 포함)은 MiniMax 약관을 따릅니다.
+
+
+4. AI 생성물 표기
+-----------------
+
+시연·홍보 영상에 AI 로 만든 재연 장면과 음악이 있으면 영상 안과 설명란에
+"AI 생성 재연 장면(MiniMax Hailuo H3) · 배경 음악 AI 생성(ACE-Step, MIT) · 앱 화면은 실제 캡처"
+로 표기합니다.

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    권한은 각 모듈 매니페스트에 선언되어 병합된다.
+    platform/vehicle: CAR_DRIVE · CAR_WINDOWS · CAR_LIGHTS · CAR_DOORS
+    platform/voice:   TTS_SERVICE · STT_SERVICE · RECORD_AUDIO
+    INTERNET 은 외부 LLM 카트리지를 붙일 때만 추가한다.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-feature
+        android:name="android.hardware.type.automotive"
+        android:required="true" />
+
+    <!-- 폴더 선택 화면 앱을 찾기 위해 필요하다 -->
+    <queries>
+        <package android:name="com.android.documentsui" />
+    </queries>
+
+    <application
+        android:name=".ChagokApplication"
+        android:allowBackup="false"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- DO 선언. 없으면 주행 중 실행 불가. 주행 중 UI 는 한 줄로 줄인다 -->
+            <meta-data
+                android:name="distractionOptimized"
+                android:value="true" />
+        </activity>
+    </application>
+</manifest>

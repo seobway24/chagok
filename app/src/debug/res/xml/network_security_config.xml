@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- debug 빌드 전용: 에뮬레이터 → PC 로컬 claude 중계(tools/claude-relay) 평문 HTTP 허용. release 에는 없다 -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
+</network-security-config>

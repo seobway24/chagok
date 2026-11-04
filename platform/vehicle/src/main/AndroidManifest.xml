@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 이 모듈이 읽는 신호에 필요한 권한만. 차량 제어(CONTROL_*) 권한은 쓰지 않는다. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Brake 페달 · Gear · Odometer -->
+    <uses-permission android:name="pleos.car.permission.CAR_DRIVE" />
+    <!-- Wiper -->
+    <uses-permission android:name="pleos.car.permission.CAR_WINDOWS" />
+    <!-- Light · TurnSignal -->
+    <uses-permission android:name="pleos.car.permission.CAR_LIGHTS" />
+    <!-- Door -->
+    <uses-permission android:name="pleos.car.permission.CAR_DOORS" />
+    <!-- 착석·벨트 조회. 탑승 확인과 벨트 안내 -->
+    <uses-permission android:name="pleos.car.permission.CAR_SEATS" />
+</manifest>

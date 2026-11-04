@@ -1,0 +1,25 @@
+# ---- 빌드 산출물 (모든 모듈·build-logic 포함) ----
+.gradle/
+.kotlin/
+build/
+captures/
+.cxx/
+*.apk
+*.aab
+# 제출용 APK 는 무시된다. 공모전 요건(apk/팀명_앱이름_release.apk)대로 올릴 때는 git add -f 로 넣는다
+
+# ---- 로컬 환경 ----
+local.properties
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+
+# ---- 비밀값 — Client ID/Secret, 외부 LLM 키. 절대 커밋하지 않는다 ----
+secrets.properties
+*.jks
+*.keystore
+
+# ---- 문서는 올리지 않는다. 제출 요건인 맨 위 README.md 만 예외 ----
+*.md
+!/README.md

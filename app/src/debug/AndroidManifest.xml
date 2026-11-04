@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- debug 전용: 내비 실측 프로브가 시연 경로를 요청한다(PleosNaviProbe). release 에는 없다 -->
+    <uses-permission android:name="pleos.car.permission.NAVI_ROUTE_SEARCH" />
+    <!-- debug 전용 네트워크 설정. main 매니페스트에 합쳐진다 -->
+    <application android:networkSecurityConfig="@xml/network_security_config" />
+</manifest>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- SDK AAR 매니페스트에는 주석 처리돼 있어 직접 선언한다. 에뮬레이터 확인: protectionLevel=normal (10/30) -->
+    <uses-permission android:name="pleos.car.permission.LLM_SERVICE" />
+    <!-- 외부 LLM (RemoteQuip). 설명회 10/28: 외부 API·퍼블릭 네트워크 허용 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 차 안 LLM 서비스가 깔려 있는지만 확인한다(API 30+ 패키지 가시성) -->
+    <queries>
+        <package android:name="ai.pleos.playground.caas" />
+    </queries>
+</manifest>
