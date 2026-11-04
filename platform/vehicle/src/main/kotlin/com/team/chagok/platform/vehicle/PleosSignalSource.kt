@@ -15,6 +15,7 @@ import com.team.chagok.platform.vehicle.adapter.seatEvents
 import com.team.chagok.platform.vehicle.adapter.turnSignalEvents
 import com.team.chagok.platform.vehicle.adapter.wiperEvents
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.merge
@@ -33,25 +34,34 @@ class PleosSignalSource(
 
     private val appContext = context.applicationContext
 
+    /**
+     * 차량 서비스가 없거나 신호 하나가 실패해도 앱은 죽지 않는다. 실패한 신호만 빠지고 나머지(내비 포함)는 그대로 돈다.
+     * 주행 판단(CarUxRestrictions)이 실패하면 대기 상태의 기본값(주행 중)이 유지돼 안전한 쪽으로 남는다.
+     */
     override val events: Flow<SignalEvent> = flow {
-        val vehicle = Vehicle(appContext)
-        vehicle.initialize()
+        val vehicle = runCatching { Vehicle(appContext).also { it.initialize() } }
+            .onFailure { Log.w(TAG, "Vehicle SDK unavailable", it) }
+            .getOrNull()
         try {
-            emitAll(
-                merge(
-                    DrivingGate(appContext).events(),
-                    vehicle.turnSignalEvents(),
-                    vehicle.brakePedalEvents(),
-                    vehicle.gearEvents(),
-                    vehicle.wiperEvents(config.rainAfter),
-                    vehicle.lightEvents(config.tunnelAfter),
-                    vehicle.doorEvents(config.doorSettle),
-                    vehicle.milestoneEvents(config.milestoneStepKm),
-                    vehicle.seatEvents(),
-                ).onEach { Log.d(TAG, "event $it") },
-            )
+            val carSignals = vehicle?.let {
+                listOf(
+                    it.turnSignalEvents(),
+                    it.brakePedalEvents(),
+                    it.gearEvents(),
+                    it.wiperEvents(config.rainAfter),
+                    it.lightEvents(config.tunnelAfter),
+                    it.doorEvents(config.doorSettle),
+                    it.milestoneEvents(config.milestoneStepKm),
+                    it.seatEvents(),
+                )
+            }.orEmpty()
+            val sources = listOf(DrivingGate(appContext).events()) + carSignals
+            emitAll(merge(*sources.map { it.dropOnFailure() }.toTypedArray()).onEach { Log.d(TAG, "event $it") })
         } finally {
-            vehicle.release()
+            vehicle?.let { runCatching { it.release() } }
         }
     }
+
+    private fun Flow<SignalEvent>.dropOnFailure(): Flow<SignalEvent> =
+        catch { Log.w(TAG, "Vehicle signal stopped", it) }
 }
