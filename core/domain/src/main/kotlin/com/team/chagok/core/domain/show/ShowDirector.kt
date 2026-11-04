@@ -52,29 +52,40 @@ class ShowDirector(
         destination?.takeIf { it.isNotBlank() }?.let { say(script.route.replace("{destination}", it)) }
     }
 
-    /** @return 들은 대답. 끝내 못 들었으면 null. */
-    suspend fun corner(live: LiveCorner, roster: List<Guest>, episode: Int = 0): Answer? {
+    /**
+     * @param heard 대답을 듣자마자, 받아치기를 기다리고 말하기 전에 부른다. 반응 도중 깜빡이로 끊겨도
+     *  대답이 이미 기록돼 있어야 재개 때 같은 질문을 처음부터 다시 하지 않는다.
+     * @return 들은 대답. 끝내 못 들었으면 null.
+     */
+    suspend fun corner(
+        live: LiveCorner,
+        roster: List<Guest>,
+        episode: Int = 0,
+        heard: suspend (Answer) -> Unit = {},
+    ): Answer? {
         val guest = live.guest
         val question = live.corner.callOutFor(episode).fill(guest = guest)
         say(question)
 
-        var heard = mic.listen(listenWindow)
-        if (heard !is Heard.Text) {
+        var reply = mic.listen(listenWindow)
+        if (reply !is Heard.Text) {
             say(script.recall.fill(guest = guest))
-            heard = mic.listen(listenWindow)
+            reply = mic.listen(listenWindow)
         }
 
         val request = QuipRequest(
             cornerId = live.corner.id,
             skinId = skin.id,
             speaker = guest.nickname,
-            utterance = (heard as? Heard.Text)?.text.orEmpty(),
+            utterance = (reply as? Heard.Text)?.text.orEmpty(),
             signal = live.corner.trigger,
             kidSafe = roster.any { it.isChild },
             question = question,
         )
+        val answer = request.utterance.takeIf { it.isNotBlank() }?.let { Answer(guest.id, live.corner.id, question, it) }
+        answer?.let { heard(it) }
         (quip.quip(request) as? QuipResult.Line)?.let { say(it.text) }
-        return request.utterance.takeIf { it.isNotBlank() }?.let { Answer(guest.id, live.corner.id, question, it) }
+        return answer
     }
 
     /**

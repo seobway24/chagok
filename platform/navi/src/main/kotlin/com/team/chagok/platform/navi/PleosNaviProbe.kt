@@ -10,6 +10,7 @@ import ai.pleos.playground.navi.data.RouteInfo
 import ai.pleos.playground.navi.data.RouteStartInfo
 import ai.pleos.playground.navi.helper.NaviHelper
 import ai.pleos.playground.navi.helper.listener.NaviHelperEventListener
+import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
 
@@ -26,6 +27,9 @@ object PleosNaviProbe {
         sp.getMethod("get", String::class.java, String::class.java).invoke(null, "debug.chagok.navi_probe", "0") == "1"
     }.getOrDefault(false)
 
+    // 경로 검색 권한은 앱에 선언하지 않는다(실제 방송은 경로를 요청하지 않는다). setprop 으로 켠 디버그 실측에서만
+    // 부르고, 권한이 없어 SecurityException 이 나면 아래 runCatching 이 로그만 남긴다
+    @SuppressLint("MissingPermission")
     fun run(context: Context) {
         val navi = runCatching { NaviHelper(context.applicationContext) }.getOrElse {
             Log.w(TAG, "NaviHelper unavailable", it)

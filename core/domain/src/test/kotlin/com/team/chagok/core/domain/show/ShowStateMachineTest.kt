@@ -1,5 +1,6 @@
 package com.team.chagok.core.domain.show
 
+import com.team.chagok.core.model.Answer
 import com.team.chagok.core.model.Corner
 import com.team.chagok.core.model.FormatPack
 import com.team.chagok.core.model.Guest
@@ -89,6 +90,48 @@ class ShowStateMachineTest {
         // 끊긴 코너는 재개할 때 다시 연다
         val resumed = machine.reduce(released.state, ShowInput.ResumeDue).state as ShowState.OnAir
         assertEquals("weather", resumed.live?.corner?.id)
+    }
+
+    @Test
+    fun `a corner already answered is not replayed after the turn signal`() {
+        val live = onAir.on(SignalEvent.RainStarted).state as ShowState.OnAir
+        val heard = machine.reduce(live, ShowInput.Answered(Answer(jiho.id, "weather", "비 몇 점?", "칠 점"))).state
+
+        val paused = heard.on(SignalEvent.TurnSignalChanged(on = true)).state
+        val released = paused.on(SignalEvent.TurnSignalChanged(on = false)).state
+        val resumed = machine.reduce(released, ShowInput.ResumeDue).state as ShowState.OnAir
+
+        // 대답까지 들은 코너는 끝난 것으로 치고 이어 간다. 같은 질문·같은 반응을 다시 하지 않는다
+        assertEquals(null, resumed.live)
+        assertTrue("weather" in resumed.playedCornerIds)
+        assertEquals(1, resumed.answers.size)
+    }
+
+    @Test
+    fun `an answered callback corner is not reopened by the quiet timer after a pause`() {
+        val callback = Corner("callback:g1|milestone|바다", "지난 회 이어서", SignalCategory.QUIET, "{guest}, 바다?", forGuest = jiho.id)
+        val asking = machine.reduce(onAir.copy(callbacks = listOf(callback)), ShowInput.QuietDue).state as ShowState.OnAir
+        assertEquals(callback.id, asking.live?.corner?.id)
+        val heard = machine.reduce(asking, ShowInput.Answered(Answer(jiho.id, callback.id, "바다?", "또 가요"))).state
+
+        val paused = heard.on(SignalEvent.TurnSignalChanged(on = true)).state
+        val released = paused.on(SignalEvent.TurnSignalChanged(on = false)).state
+        val resumed = machine.reduce(released, ShowInput.ResumeDue).state
+        val later = machine.reduce(resumed, ShowInput.QuietDue).state as ShowState.OnAir
+
+        assertEquals(null, later.live)
+        assertTrue(callback.id in later.playedCornerIds)
+    }
+
+    @Test
+    fun `an answer that arrives after the corner was cut is dropped`() {
+        val live = onAir.on(SignalEvent.RainStarted).state
+        val paused = live.on(SignalEvent.TurnSignalChanged(on = true)).state
+
+        val late = machine.reduce(paused, ShowInput.Answered(Answer(jiho.id, "weather", "비 몇 점?", "칠 점"))).state
+
+        // 끊긴 코너는 재개 뒤 처음부터 다시 묻는다. 늦게 온 대답이 남으면 같은 코너 대답이 둘이 된다
+        assertTrue((late as ShowState.SafetyPaused).resumeTo.answers.isEmpty())
     }
 
     @Test

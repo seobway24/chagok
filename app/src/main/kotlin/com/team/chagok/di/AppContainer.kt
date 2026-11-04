@@ -22,7 +22,6 @@ import com.team.chagok.BuildConfig
 import com.team.chagok.content.BuiltinShow
 import com.team.chagok.core.domain.port.MicInput
 import com.team.chagok.core.domain.port.SignalSource
-import com.team.chagok.core.domain.signal.RehearsalMic
 import com.team.chagok.core.domain.show.ShowDirector
 import com.team.chagok.core.domain.show.ShowEngine
 import com.team.chagok.core.domain.show.ShowStateMachine
@@ -97,8 +96,12 @@ class AppContainer(context: Context) {
         onSaved = { familyMemory.countAppearances(it.guestIds) },
     )
     private val voice by lazy { PleosHostVoice(appContext) }
+    /** 지금 방송 중인 엔진. 리허설 마이크가 열린 코너를 보고 대답을 고른다. */
+    @Volatile
+    private var currentEngine: ShowEngine? = null
+
     private val mic: MicInput by lazy {
-        if (BuildConfig.DEMO_ANSWERS) RehearsalMic(BuiltinShow.rehearsalAnswers) else PleosMicInput(appContext)
+        DemoMic.orNull { currentEngine?.state?.value } ?: PleosMicInput(appContext)
     }
 
     /** 화면 자막: 진행자가 읽는 말 · 방금 들은 대답. */
@@ -120,7 +123,7 @@ class AppContainer(context: Context) {
             studio = studio,
             memory = familyMemory,
             voices = voiceDesk,
-        )
+        ).also { currentEngine = it }
     }
 
     // ---- 목소리: 앱 안에만 저장. 서버로 보내지 않는다 ----
@@ -385,8 +388,10 @@ class AppContainer(context: Context) {
         put(PleosLlmQuip.ID) { PleosLlmQuip(appContext, server = false, credentials = pleosCredentials) }
     }
 
-    /** 디버그 빌드: 이 기기에서 Pleos LLM 이 답하는지 logcat(ChagokLlmProbe)에 남긴다. */
-    suspend fun probePleosLlm() = PleosLlmProbe.run(appContext, pleosCredentials)
+    /** 디버그: 이 기기에서 Pleos LLM 이 답하는지 logcat(ChagokLlmProbe)에 남긴다. setprop debug.chagok.llm_probe 1 일 때만. */
+    suspend fun probePleosLlm() {
+        if (PleosLlmProbe.enabled()) PleosLlmProbe.run(appContext, pleosCredentials)
+    }
 
     /** 디버그: 내비 원값 실측. setprop debug.chagok.navi_probe 1 일 때만 경로를 요청한다. */
     fun probeNavi() {

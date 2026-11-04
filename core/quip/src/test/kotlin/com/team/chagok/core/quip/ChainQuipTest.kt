@@ -1,11 +1,18 @@
 package com.team.chagok.core.quip
 
 import com.team.chagok.core.model.SignalCategory
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 
 class ChainQuipTest {
 
@@ -33,6 +40,25 @@ class ChainQuipTest {
         val chain = ChainQuip(primary = listOf(slow), fallback = template)
 
         assertEquals("template", (chain.quip(request) as QuipResult.Line).engineId)
+    }
+
+    @Test
+    fun `engine stuck in blocking io still gets cut at the budget`() = runBlocking {
+        // 외부 LLM 처럼 HttpURLConnection 으로 막혀 취소를 못 받는 엔진. 예산이 지나면 기다리지 않고 템플릿으로 간다
+        val blocking = object : QuipEngine {
+            override val id = "blocking"
+            override suspend fun quip(request: QuipRequest): QuipResult = withContext(Dispatchers.IO) {
+                Thread.sleep(3_000)
+                QuipResult.Line("늦은 대사", id, 3_000)
+            }
+        }
+        val chain = ChainQuip(primary = listOf(blocking), fallback = template, budget = 300.milliseconds)
+
+        val started = TimeSource.Monotonic.markNow()
+        val result = chain.quip(request)
+
+        assertEquals("template", (result as QuipResult.Line).engineId)
+        assertTrue("예산 300ms 인데 ${started.elapsedNow()} 걸림", started.elapsedNow() < 1.seconds)
     }
 
     @Test
@@ -97,6 +123,23 @@ class ChainQuipTest {
         onDevice.answers = true
         assertEquals("pleos-llm", (chain.quip(request) as QuipResult.Line).engineId)
         assertEquals(3, onDevice.calls)
+    }
+
+    @Test
+    fun `engine whose calls fail is benched after two failures`() = runTest {
+        // 외부 LLM 이 잘못된 키·망 없음으로 실패하면 ERROR 를 낸다 → 두 번 뒤 2분간 건너뛴다
+        var calls = 0
+        val failing = object : QuipEngine {
+            override val id = "remote"
+            override suspend fun quip(request: QuipRequest): QuipResult {
+                calls += 1
+                return QuipResult.Unavailable(QuipResult.Reason.ERROR)
+            }
+        }
+        val chain = ChainQuip(listOf(failing), template, timeSource = testScheduler.timeSource)
+
+        repeat(5) { assertEquals("template", (chain.quip(request) as QuipResult.Line).engineId) }
+        assertEquals(2, calls)
     }
 
     @Test

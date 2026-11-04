@@ -16,11 +16,19 @@ import kotlin.time.TimeSource
  * 디버그 빌드 전용: 이 기기에서 Pleos LLM 이 실제로 답하는지 모드별로 확인해 로그로 남긴다.
  *
  * `adb logcat -s ChagokLlmProbe` 로 본다. 자격증명 값은 찍지 않는다.
+ *
+ * [enabled] 일 때만 돈다: `adb shell setprop debug.chagok.llm_probe 1`. 에뮬레이터에선 ON_DEVICE 가 30초씩 세 번
+ * 무응답, SERVER 가 UNKNOWN 오류를 내며 앱을 켤 때마다 2분 가까이 방송과 같은 LLM 서비스를 붙잡았다(11/03 logcat).
  */
 object PleosLlmProbe {
 
     private const val TAG = "ChagokLlmProbe"
     private const val PROMPT = "한국어 한 문장으로 짧게 인사해 줘."
+
+    fun enabled(): Boolean = runCatching {
+        val sp = Class.forName("android.os.SystemProperties")
+        sp.getMethod("get", String::class.java, String::class.java).invoke(null, "debug.chagok.llm_probe", "0") == "1"
+    }.getOrDefault(false)
 
     suspend fun run(context: Context, credentials: PleosCredentials?) {
         Log.i(TAG, "start credentials=${credentials != null}")

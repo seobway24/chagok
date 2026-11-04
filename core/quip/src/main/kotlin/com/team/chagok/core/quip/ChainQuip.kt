@@ -1,7 +1,11 @@
 package com.team.chagok.core.quip
 
-import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -66,17 +70,27 @@ class ChainQuip(
         }
     }
 
-    private suspend fun QuipEngine.tryWithin(limit: Duration, request: QuipRequest): QuipResult =
-        try {
-            withTimeout(limit) { quip(request) }
-        } catch (e: TimeoutCancellationException) {
-            QuipResult.Unavailable(QuipResult.Reason.TIMEOUT)
+    /**
+     * 엔진 호출을 호출자와 끊어진 Job 으로 돌린다. withTimeout 만 쓰면 취소를 못 받는 엔진
+     * (HttpURLConnection 으로 막힌 외부 LLM 등)이 끝날 때까지 기다려서 예산이 지켜지지 않는다.
+     * 예산이 지나면 결과를 버리고 취소만 걸어 둔 채 바로 다음으로 간다 — 버린 호출은 제 시간 제한까지 뒤에서 돈다.
+     */
+    private suspend fun QuipEngine.tryWithin(limit: Duration, request: QuipRequest): QuipResult {
+        val context = currentCoroutineContext()
+        val call = CoroutineScope(context + Job()).async { quip(request) }
+        return try {
+            withTimeoutOrNull(limit) { call.await() }
+                ?: QuipResult.Unavailable(QuipResult.Reason.TIMEOUT).also { call.cancel() }
         } catch (e: CancellationException) {
-            throw e
+            call.cancel()
+            // 장면이 끊긴 것(호출자 취소)이면 그대로 올린다. 엔진 안에서 난 취소는 실패로 친다
+            context.ensureActive()
+            QuipResult.Unavailable(QuipResult.Reason.ERROR)
         } catch (e: Exception) {
             // 카트리지 계약 위반(예외)도 체인을 멈추지 않는다
             QuipResult.Unavailable(QuipResult.Reason.ERROR)
         }
+    }
 
     companion object {
         /** 받아치기 전체 시간 예산 (architecture §4.2). */

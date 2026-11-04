@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -138,13 +139,32 @@ private fun SummaryBar(state: OnAirUiState, room: Room, onVoices: () -> Unit, on
     }
 }
 
-/** 프로필 QR. 휴대폰 카메라로 읽는 크기로 띄운다. */
+/**
+ * 프로필 QR. 휴대폰 카메라로 읽는 크기로 띄운다.
+ * QR 에는 글이 그대로 들어 있다(ProfileCards.qrText: 지난 회 한 줄 + 사람별 카드 줄). 주소가 아니라 어디로도 올라가지 않는다.
+ */
 @Composable
 private fun QrDialog(qrText: String, onDismiss: () -> Unit) {
     Dialog(onDismissRequest = onDismiss) {
-        QrCode(qrText, Modifier.size(QR_SIZE).clip(ChagokShapes.Control).background(Color.White).padding(16.dp))
+        Column(
+            Modifier.clip(ChagokShapes.Control).background(Color.White).padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            QrCode(qrText, Modifier.size(QR_SIZE))
+            Text(
+                QR_HINT,
+                Modifier.padding(top = 12.dp).width(QR_SIZE),
+                // QR 바탕이 늘 흰색이라 글자도 테마와 상관없이 짙은 색으로 둔다
+                color = Color(0xFF1F1F1F),
+                fontSize = 16.sp,
+                lineHeight = 22.sp,
+            )
+        }
     }
 }
+
+/** QR 안내 한 줄. 무엇이 들었는지 · 어떻게 쓰는지 · 밖으로 안 나간다는 것. */
+internal const val QR_HINT = "휴대폰 카메라로 비추면 가족 카드 글이 열려요. 인터넷으로 보내지 않아요."
 
 // ---- 사람 줄 ----
 

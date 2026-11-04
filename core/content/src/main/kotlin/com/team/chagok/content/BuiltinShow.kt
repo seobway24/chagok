@@ -161,15 +161,6 @@ object BuiltinShow {
     val cornerTitles: Map<String, String>
         get() = basicPack.corners.associate { it.id to it.title } + ("farewell" to "하차 한마디")
 
-    /** 음성 입력이 없는 에뮬레이터 리허설용 대답. debug 빌드에서 -PDEMO_ANSWERS=true 일 때만 쓴다. */
-    val rehearsalAnswers = listOf(
-        "오늘 비 오니까 칠 점이요. 그래도 짬뽕 먹으러 가서 좋아요",
-        "저는 나중에 제주도에서 작은 책방을 열고 싶어요",
-        "요즘은 게임 만드는 공부를 하고 있어요",
-        "터널 지날 때 창문 닫는 게 제일 웃겨요",
-        "오늘 다들 고마웠어요. 다음엔 오사카 가요",
-    )
-
     /** 장르 스킨만. 실존 방송·인물·유행어·목소리 흉내는 넣지 않는다. */
     val skins = listOf(
         HostSkin(id = "basic", title = "다정한 진행자", ttsSpeaker = "haeun"),

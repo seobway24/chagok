@@ -59,4 +59,22 @@ class ShowDirectorCornerTest {
         assertEquals("B! 엄마", first?.question)
         assertEquals("C! 엄마", second?.question)
     }
+
+    @Test
+    fun `the answer is handed over before the host starts the reaction`() = runTest {
+        val order = mutableListOf<String>()
+        val slowQuip = object : QuipEngine {
+            override val id = "slow"
+            override suspend fun quip(request: QuipRequest): QuipResult {
+                order += "quip"
+                return QuipResult.Line("좋아요", id, 0)
+            }
+        }
+        val director = ShowDirector(SpokenLines(), mic, slowQuip, HostSkin("basic", "다정한 진행자", "haeun"))
+
+        director.corner(LiveCorner(corner, guest), listOf(guest), episode = 13, heard = { order += "heard:${it.text}" })
+
+        // 반응을 말하는 중에 깜빡이로 끊겨도 대답은 이미 상태에 들어가 있어야 재개 때 같은 코너를 다시 열지 않는다
+        assertEquals(listOf("heard:바다요", "quip"), order)
+    }
 }

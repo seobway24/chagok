@@ -71,7 +71,9 @@ class RemoteQuip(
             throw e
         } catch (e: Exception) {
             Log.w(TAG, "${config.provider} 호출 실패: ${e.javaClass.simpleName}")
-            return QuipResult.Unavailable(QuipResult.Reason.OFFLINE)
+            // OFFLINE 은 "설정이 없어 바로 양보"(비용 0)다. 실제로 불렀다 실패한 건 시간을 먹었으니 ERROR —
+            // 그래야 ChainQuip 이 두 번 실패 뒤 2분간 건너뛴다(잘못된 키·망 없음에 매 코너 기다리지 않게)
+            return QuipResult.Unavailable(QuipResult.Reason.ERROR)
         }
         val line = PromptBook.clean(text, request.maxChars)
         if (line.isEmpty()) return QuipResult.Unavailable(QuipResult.Reason.ERROR)

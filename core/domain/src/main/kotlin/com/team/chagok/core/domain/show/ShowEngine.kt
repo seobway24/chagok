@@ -99,7 +99,8 @@ class ShowEngine(
                 director.opening(effect.episode, effect.roster, effect.destination)
             }
             is ShowEffect.RunCorner -> scene(done = { ShowInput.CornerDone }) {
-                director.corner(effect.live, currentRoster(), currentEpisode())?.let { inbox.send(ShowInput.Answered(it)) }
+                // 대답은 들은 즉시 넣는다(반응보다 먼저). 반응 중에 끊겨도 재개 때 같은 코너를 되풀이하지 않는다
+                director.corner(effect.live, currentRoster(), currentEpisode()) { inbox.send(ShowInput.Answered(it)) }
             }
             is ShowEffect.PlayEnding -> scene(done = { ShowInput.EndingDone(clock()) }) {
                 director.ending(effect.onAir)?.let { inbox.send(ShowInput.Answered(it)) }

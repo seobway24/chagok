@@ -54,7 +54,7 @@ adb shell pm grant --user 10 com.team.chagok android.permission.RECORD_AUDIO
 ## 테스트 환경
 - Pleos Connect 에뮬레이터 (Android Studio, API 34, 사용자 10), Virtual Console 로 차량 신호 주입
 - 단위 테스트: `core` 모듈 상태 머신·신호·기억·안전 규칙 (`./gradlew test`)
-- 에뮬레이터에는 Pleos LLM 서비스가 없어 받아치기는 내장 문장으로 진행합니다 (서비스가 있으면 자동으로 먼저 씀)
+- 공모전 기간에는 운영사가 Pleos LLM 서비스를 제공하지 않아, 에뮬레이터·제출 빌드 모두 받아치기를 내장 문장으로 진행합니다. 연결 코드는 들어 있어 서비스가 열리면 자동으로 먼저 씁니다(실제 LLM 응답으로는 검증 전)
 - 에뮬레이터는 차가 움직이지 않아 내비 남은 시간이 줄지 않습니다. 도착 예고는 실차에서 남은 3분에 열립니다.
 
 ## Pleos SDK 사용
@@ -63,7 +63,7 @@ adb shell pm grant --user 10 com.team.chagok android.permission.RECORD_AUDIO
 |---|---|---|---|
 | Vehicle (와이퍼·조명·문·주행거리·방향지시등·브레이크·기어·좌석) | 2.3.2 | `platform/vehicle` | CAR_WINDOWS · CAR_LIGHTS · CAR_DOORS · CAR_DRIVE · CAR_SEATS |
 | TextToSpeech / SpeechToText (온디바이스) | 3.3.1 | `platform/voice` | TTS_SERVICE · STT_SERVICE · RECORD_AUDIO |
-| LLM (온디바이스, 있으면 1순위) | 2.1.3.2 | `platform/llm` | LLM_SERVICE |
+| LLM (온디바이스) — **연결만 구현, 공모전 기간 서비스 미제공으로 미검증** | 2.1.3.2 | `platform/llm` | LLM_SERVICE |
 | NaviHelper (목적지 이름·남은 시간만) | 3.0.5 | `platform/navi` | NAVI_ROUTE |
 | CarUxRestrictions (주행 판단) | AAOS | `platform/vehicle` | — |
 

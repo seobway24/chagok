@@ -11,6 +11,7 @@ import com.team.chagok.core.domain.show.ShowState.OnAir
 import com.team.chagok.core.domain.show.ShowState.Opening
 import com.team.chagok.core.domain.show.ShowState.ReplayOffer
 import com.team.chagok.core.domain.show.ShowState.SafetyPaused
+import com.team.chagok.core.model.Answer
 import com.team.chagok.core.model.FormatPack
 import com.team.chagok.core.model.Guest
 import com.team.chagok.core.model.Seat
@@ -46,7 +47,7 @@ class ShowStateMachine(
             else -> onSignal(state, input.event)
         }
         ShowInput.OpeningDone -> openingDone(state)
-        is ShowInput.Answered -> updateOnAir(state) { it.copy(answers = it.answers + input.answer) }
+        is ShowInput.Answered -> answered(state, input.answer)
         ShowInput.CornerDone -> cornerDone(state)
         ShowInput.ResumeDue -> resume(state)
         is ShowInput.BeltsChanged -> belts(state, input.unbuckled)
@@ -108,6 +109,15 @@ class ShowStateMachine(
     private fun openingDone(state: ShowState): Transition {
         if (state !is Opening) return Transition(state)
         return settle(state.toOnAir())
+    }
+
+    /**
+     * 대답은 반응을 말하기 전에 들어온다. 멈춘 동안 온 대답은 버린다 — 그 코너는 끊겼고(대답 전이었다)
+     * 재개 뒤 처음부터 다시 물으므로, 남기면 같은 코너 대답이 둘이 된다.
+     */
+    private fun answered(state: ShowState, answer: Answer): Transition {
+        if (state is SafetyPaused) return Transition(state)
+        return updateOnAir(state) { it.copy(answers = it.answers + answer) }
     }
 
     private fun cornerDone(state: ShowState): Transition {
@@ -338,12 +348,12 @@ class ShowStateMachine(
 
     /**
      * 출발. 정차 중에 운전자에게 연 코너가 아직 돌고 있으면 그 자리에서 끊는다 —
-     * 신호가 바뀌었는데 운전자가 대답을 이어 가면 안 된다. 끊긴 코너는 했던 것으로 치지 않는다.
+     * 신호가 바뀌었는데 운전자가 대답을 이어 가면 안 된다. 대답 전에 끊긴 코너는 했던 것으로 치지 않는다.
      */
     private fun startDriving(state: ShowState): Transition {
         if (state is Ending) return cutEnding(state.copy(onAir = state.onAir.copy(driving = true)))
         if (state is OnAir && state.live?.corner?.needsDriver == true) {
-            val cut = state.copy(driving = true, live = null)
+            val cut = state.copy(driving = true).cutLive().copy(pending = state.pending)
             return Transition(cut, listOf(InterruptCorner, scheduleQuiet(cut)))
         }
         return updateOnAir(state) { it.copy(driving = true) }
@@ -365,9 +375,15 @@ class ShowStateMachine(
     /** 엔딩 질문은 정차를 전제로 한다. 출발·깜빡이가 오면 대사를 끊고 지금까지 들은 것을 바로 저장한다. */
     private fun cutEnding(state: Ending): Transition = Transition(state, listOf(ShowEffect.CutEnding))
 
-    /** 끊긴 코너는 재개 뒤 맨 앞에서 다시 연다. 채움 코너는 조용함 타이머가 다시 고른다. */
+    /**
+     * 끊긴 코너는 재개 뒤 맨 앞에서 다시 연다. 채움 코너는 조용함 타이머가 다시 고른다.
+     * 단, 대답까지 들은 코너는 반응만 남았던 것이라 끝난 것으로 친다 — 다시 열면 같은 질문과 반응을 되풀이한다.
+     */
     private fun OnAir.cutLive(): OnAir {
         val cut = live ?: return this
+        if (answers.any { it.cornerId == cut.corner.id && it.guestId == cut.guest.id }) {
+            return copy(live = null, playedCornerIds = playedCornerIds + cut.corner.id, turns = turns + cut.guest.id)
+        }
         val trigger = cut.corner.trigger
         if (trigger == SignalCategory.QUIET) return copy(live = null)
         val cue = Cue(trigger, cut.guest.seat.takeIf { trigger == SignalCategory.DOOR })
