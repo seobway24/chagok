@@ -23,7 +23,21 @@ object QuipText {
         return head.take(cut).trimEnd(' ', ',')
     }
 
+    /**
+     * 진행자가 되받을 대답 한 마디. 첫 마디(문장부호·쉼표 앞)만 남기고 끝 문장부호는 뗀다 — "떡볶이요!" 를
+     * "{answer}!" 에 넣으면 "!!" 가 된다. 두 낱말·10자를 넘으면 null: 문장째 되읽으면
+     * "벨트 잘 매 줘서 고마워요, 그 대답 기다렸어요." 처럼 남의 말을 진행자 말에 붙인 꼴이 된다.
+     */
+    fun echoOf(answer: String): String? {
+        val head = answer.trim().split(CLAUSE_END, limit = 2).first().trim().trim('"', '\'', '“', '”')
+        val words = head.split(' ').count { it.isNotBlank() }
+        return head.takeIf { it.isNotEmpty() && it.length <= MAX_ECHO_CHARS && words <= MAX_ECHO_WORDS }
+    }
+
     private const val MIN_SENTENCE = 10
+    private const val MAX_ECHO_CHARS = 10
+    private const val MAX_ECHO_WORDS = 2
+    private val CLAUSE_END = Regex("[.!?~,]")
 
     /** 그림 문자·기호 이모지·변형 선택자·ZWJ (코드 포인트 범위). 한글·문장부호는 건드리지 않는다. */
     private val EMOJI = Regex("[\\x{1F000}-\\x{1FAFF}\\x{2600}-\\x{27BF}\\x{FE0F}\\x{200D}]")

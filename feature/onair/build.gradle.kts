@@ -14,4 +14,5 @@ dependencies {
     // 가족 프로필 QR — 네트워크 없이 차 화면 → 휴대폰 카메라
     implementation(libs.zxing.core)
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

@@ -31,6 +31,8 @@ data class HostScript(
     /** 벨트 = 출석. 꾸짖지 않고 출석을 부르듯 말한다. 매 달라는 말은 빼지 않는다. */
     val belt: String = "{names}, 벨트를 매면 출석 완료! 안전벨트 매 주세요.",
     val whoAreYou: String = "{seat}, 누구세요? 이름을 말해 주세요.",
+    /** 방송 중에 늦게 탄 사람. 게스트 입장 코너를 이미 했을 때만 쓴다. */
+    val welcome: String = "{guests}, 어서 오세요! 지금부터 같이 방송해요.",
 )
 
 /**
@@ -117,6 +119,9 @@ class ShowDirector(
 
     suspend fun belt(names: List<String>) = say(script.belt.replace("{names}", names.joinToString()))
 
+    /** 늦게 탄 사람을 이름으로 맞는 한 줄. */
+    suspend fun welcome(guests: List<Guest>) = say(script.welcome.fill(guests = guests))
+
     /** 카드가 없는 자리에 이름을 묻는다. 끝내 못 들었으면 null. */
     suspend fun askName(seat: Seat): String? {
         say(script.whoAreYou.replace("{seat}", seat.label))
@@ -133,7 +138,7 @@ class ShowDirector(
         guests: List<Guest> = emptyList(),
     ): String = this
         .replace("{episode}", episode?.toString().orEmpty())
-        .replace("{guest}", guest?.nickname.orEmpty())
+        .fillGuest(guest?.nickname.orEmpty())
         .replace("{guests}", guests.joinToString { it.nickname })
         .replace("{count}", guests.size.toString())
 

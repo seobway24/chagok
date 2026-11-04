@@ -40,7 +40,8 @@ class RuleFactExtractor(
         }
 
     companion object {
-        const val MAX_KEYWORD = 16
+        /** 이보다 긴 첫 마디는 낱말 경계에서 자르고 "…" 를 붙인다 — 잘린 조각을 온전한 대답처럼 말하지 않게. */
+        const val MAX_KEYWORD = 30
 
         // "음, 짜장면" 의 "음," — 뒤에 띄어쓰기·쉼표가 있어야 군말로 본다("아빠" 의 "아" 는 남긴다)
         private val LEADING_FILLER = Regex("""^(?:음+|어+|아+|그+|흠+|엄+)[\s.,…]+""")
@@ -52,7 +53,7 @@ class RuleFactExtractor(
                 .split(BREAK).map(String::trim).firstOrNull { it.isNotEmpty() } ?: return null
             if (first.length < 2 || first in NON_ANSWERS) return null
             if (first.length <= MAX_KEYWORD) return first
-            return first.take(MAX_KEYWORD).substringBeforeLast(' ').takeIf { it.length >= 2 }
+            return first.take(MAX_KEYWORD).substringBeforeLast(' ').trim().takeIf { it.length >= 2 }?.let { "$it…" }
         }
     }
 }

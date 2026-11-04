@@ -180,7 +180,8 @@ private fun BoardSide(board: BoardingUi, room: Room, actions: BoardActions, onSt
             Lead("모두 매야 방송을 시작해요.", if (board.alarm) c.stopInk else c.sub)
         }
         BoardMode.READY -> {
-            LaunchedEffect(Unit) {
+            // 그 사이 누가 앉거나 내리면 처음부터 다시 센다
+            LaunchedEffect(board.readyKey) {
                 delay(READY_MS)
                 onStart()
             }
@@ -210,6 +211,11 @@ private fun BoardSide(board: BoardingUi, room: Room, actions: BoardActions, onSt
         BoardMode.WATCH -> if (board.riders == 0) {
             Headline("아직 아무도 없어요", c.ink, room)
             Lead("자리에 앉으면 여기에 나타나요.", c.sub)
+        } else if (board.unbuckled.isEmpty() && board.doorOpen) {
+            // 모두 맸지만 문이 열려 있다. 문 센서가 열림에 멈춰도 갇히지 않게 바로 시작할 수 있다
+            Headline("${board.riders}명이 탔어요", c.ink, room)
+            Lead("문이 닫히면 시작해요.", c.sub)
+            PillButton("지금 시작", c.ink, filled = true, onClick = onStart, modifier = Modifier.padding(top = 20.dp))
         } else {
             Headline("${board.riders}명이 탔어요", c.ink, room)
             Lead("안전벨트를 매면 출석이에요." + board.unbuckled.takeIf { it.isNotEmpty() }?.let { " 아직 ${it.joinToString()} 남았어요." }.orEmpty(), c.sub)

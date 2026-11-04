@@ -12,7 +12,9 @@ import com.team.chagok.core.model.SignalCategory
  *
  * AI 가 하는 일은 정보 뽑기까지다. 질문 틀은 [templates] 로 고정이라 코너 규칙(운전자는 정차 중에만 등)을 못 바꾼다.
  *
- * @param templates 정보가 나온 코너 id → 호명 대사. `{guest}` `{keyword}` 가 채워진다.
+ * @param templates 정보가 나온 코너 id → 호명 대사. `{guest}` `{keyword}` 가 채워진다. `{keyword}` 자리는 이름 꼴("…은 {keyword}!").
+ * @param quoteTemplates 대답이 이름이 아니라 문장일 때 쓰는 틀. 지난 대답을 따옴표로 그대로 옮긴다("…기억나요? '{keyword}'.").
+ *  이 틀이 없는 코너의 문장 대답은 꺼내지 않는다 — "대답은 죽 끓여 준!" 처럼 어색하게 말하느니 안 묻는다.
  * @param freshFor 몇 회 전 정보까지 꺼내나. 오래된 얘기를 계속 꺼내면 지루하다.
  * @param accept 완성된 대사 검사(금칙어 등). false 면 버린다.
  */
@@ -21,6 +23,7 @@ class CallbackPlanner(
     private val maxPerEpisode: Int = 3,
     private val freshFor: Int = 2,
     private val accept: (String) -> Boolean = { true },
+    private val quoteTemplates: Map<String, String> = emptyMap(),
 ) {
 
     fun plan(book: ProfileBook, roster: List<Guest>, episode: Int): List<Corner> {
@@ -39,7 +42,9 @@ class CallbackPlanner(
     }
 
     private fun cornerFor(guest: Guest, fact: FamilyFact): Corner? {
-        val callOut = templates.getValue(fact.cornerId).replace("{keyword}", fact.keyword)
+        val keyword = fact.keyword.trim().replace("'", "")
+        val template = if (readsAsNoun(keyword)) templates.getValue(fact.cornerId) else quoteTemplates[fact.cornerId] ?: return null
+        val callOut = template.replace("{keyword}", keyword)
         if (!accept(callOut.replace("{guest}", guest.nickname))) return null
         return Corner(
             id = PREFIX + fact.key,
@@ -57,5 +62,22 @@ class CallbackPlanner(
 
         /** 이어 묻기 코너 id → 그 코너가 꺼낸 정보의 key. 이어 묻기 코너가 아니면 null. */
         fun factKeyOf(cornerId: String): String? = cornerId.takeIf { it.startsWith(PREFIX) }?.removePrefix(PREFIX)
+
+        /**
+         * "짜장면", "강릉 바다" 처럼 이름 칸에 들어가도 말이 되나. 끝 낱말이 서술어 꼴(…요, …했다, …준, …보러)이거나
+         * 잘린 대답(…)이면 문장으로 본다. 이름을 문장으로 잘못 보면 따옴표로 옮길 뿐이라 그쪽으로 기운다.
+         */
+        fun readsAsNoun(keyword: String): Boolean {
+            val text = keyword.trim()
+            if (text.isEmpty() || text.endsWith("…")) return false
+            val last = text.substringAfterLast(' ')
+            return CLAUSE_ENDINGS.none { last.endsWith(it) }
+        }
+
+        private val CLAUSE_ENDINGS = listOf(
+            "요", "죠", "니다", "었다", "았다", "했다", "였다", "겠다", "는다", "한다", "된다",
+            "해", "어", "아", "야", "네", "까", "지만", "는데", "면서",
+            "준", "한", "는", "던", "은", "운", "된", "러", "려", "서", "고",
+        )
     }
 }

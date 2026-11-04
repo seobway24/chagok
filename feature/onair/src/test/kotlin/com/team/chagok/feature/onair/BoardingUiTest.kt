@@ -5,7 +5,9 @@ import com.team.chagok.core.domain.show.SeatSignal
 import com.team.chagok.core.model.Seat
 import org.junit.Test
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 
 class BoardingUiTest {
     private val people = listOf(PersonCard("a", "아빠", Seat.DRIVER), PersonCard("b", "민준", Seat.REAR_RIGHT))
@@ -41,6 +43,32 @@ class BoardingUiTest {
     @Test
     fun `all buckled is ready`() {
         assertEquals(BoardMode.READY, ui(cabin(Seat.DRIVER to belted, Seat.REAR_RIGHT to belted)).mode)
+    }
+
+    @Test
+    fun `an open door holds the countdown while someone is still getting in`() {
+        val c = cabin(Seat.DRIVER to belted, Seat.REAR_RIGHT to belted).copy(openDoors = setOf(Seat.REAR_LEFT))
+        val b = ui(c)
+        assertEquals(BoardMode.WATCH, b.mode)
+        assertTrue(b.doorOpen)
+        assertEquals(BoardMode.READY, ui(c.copy(openDoors = emptySet())).mode)
+    }
+
+    @Test
+    fun `a rider who sits down during the countdown stops it until buckled`() {
+        val ready = cabin(Seat.DRIVER to belted, Seat.REAR_RIGHT to belted)
+        assertEquals(BoardMode.READY, ui(ready).mode)
+        val sitting = Cabin(sensed = true, seats = ready.seats + (Seat.REAR_LEFT to loose))
+        assertEquals(BoardMode.WATCH, ui(sitting).mode)
+    }
+
+    @Test
+    fun `the countdown key changes whenever the cabin changes so the countdown starts over`() {
+        val two = ui(cabin(Seat.DRIVER to belted, Seat.REAR_RIGHT to belted))
+        val three = ui(cabin(Seat.DRIVER to belted, Seat.REAR_RIGHT to belted, Seat.FRONT_PASSENGER to belted), BoardDraft(guests = mapOf(Seat.FRONT_PASSENGER to "손님")))
+        assertEquals(BoardMode.READY, three.mode)
+        assertNotEquals(two.readyKey, three.readyKey)
+        assertEquals(two.readyKey, ui(cabin(Seat.DRIVER to belted, Seat.REAR_RIGHT to belted)).readyKey)
     }
 
     @Test

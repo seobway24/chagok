@@ -3,9 +3,30 @@
 **가족이 차에 타면, 출발부터 목적지까지 우리 가족만의 팟캐스트가 열립니다.**
 차량 신호(와이퍼·전조등·문·벨트·내비 남은 시간)가 코너를 열고, 진행자 목소리(Pleos TTS)가 한 사람씩 이름을 불러 묻고, 짧은 대답(Pleos STT)에 한 줄로 받아칩니다. 회차와 대답은 차 안에만 쌓이고, 다음 회에 지난 대답을 먼저 꺼냅니다.
 
-- 팀: chagok
+- 개발: 개인 참가 (저장소·커밋 이름 chagok)
 - 플랫폼: Pleos Connect (Android Automotive, API 34) · 최소 API 28
 - 언어: Kotlin · Jetpack Compose · Gradle 8
+
+## 시연 영상
+
+[![차곡 시연 영상 (2분 20초)](docs/video/chagok_demo_thumb.png)](docs/video/chagok_demo.mp4)
+
+Pleos Connect 에뮬레이터에서 실제 앱을 돌린 화면입니다. 진행자 목소리는 앱의 온디바이스 TTS 출력을 스피커에서 녹음했고, 차량 신호는 앱의 디버그 신호 패널로 넣었습니다. 배경 음악은 AI로 만들었습니다(ACE-Step, MIT 라이선스).
+
+<!-- 유튜브: (업로드 후 추가) -->
+
+## 화면
+
+| | |
+|---|---|
+| ![벨트 안내](docs/screens/03_belt_reminder.png)<br>탑승: 벨트를 매면 출석, 안 맨 사람은 이름으로 안내 | ![출석 완료](docs/screens/04_all_belted_ready.png)<br>모두 매면 카운트다운 뒤 방송 시작 |
+| ![오프닝](docs/screens/05_show_opening.png)<br>오프닝: 회차와 탄 사람 이름을 불러 줌 | ![지난 회 인용](docs/screens/11_route_highlight.png)<br>내비 목적지가 제목이 되고, 지난 회 한 줄을 인용해 이어 묻기 |
+| ![기상 특보](docs/screens/07_corner_weather.png)<br>와이퍼 → 기상 특보 | ![터널 토크](docs/screens/08_corner_tunnel.png)<br>터널 통과(전조등) → 터널 토크 |
+| ![게스트 입장](docs/screens/09_corner_guest.png)<br>뒷문 닫힘 → 게스트 입장 | ![주행 특집](docs/screens/10_corner_distance.png)<br>함께 100km → 주행 특집 |
+| ![주행 화면](docs/screens/14_driving_corner_tunnel.png)<br>주행 중: 코너 이름 한 줄, 터치 없음 | ![잠깐 쉬기](docs/screens/13_pause_turn_signal.png)<br>깜빡이 → 잠깐 쉬기 |
+| ![엔딩](docs/screens/16_ending.png)<br>기어 P → 엔딩 인사 | ![다음 회 한마디](docs/screens/17_keepsake_prompt.png)<br>다음 회에 틀 한마디, 누가 남길까요? |
+| ![저장 완료](docs/screens/19_keepsake_saved.png)<br>한마디는 이 차에만 저장 | ![목소리 제안](docs/screens/28_keepsake_offer.png)<br>다음 회 시작 때 지난 회 목소리 틀기 |
+| ![회차 정리](docs/screens/20_episode_recap.png)<br>지난 방송 표지 → 회차 정리 · 기억 지우기 | ![AI 설정](docs/screens/26_ai_settings_privacy.png)<br>외부 AI는 선택: 이름을 가려 보내고 키는 차에만 암호화 저장 |
 
 ## APK
 

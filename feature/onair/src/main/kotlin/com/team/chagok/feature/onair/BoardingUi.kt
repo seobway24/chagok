@@ -44,7 +44,12 @@ data class BoardingUi(
     val driving: Boolean = false,
     val episode: Int = 1,
     val manual: List<ManualPick> = emptyList(),
-)
+    /** 문이 열려 있다 = 아직 타는 중. 모두 맸어도 카운트다운을 시작하지 않는다. */
+    val doorOpen: Boolean = false,
+) {
+    /** 카운트다운은 이 값이 바뀔 때마다 처음부터 다시 센다 — 그 사이 누가 앉거나 내리면 기다린다. */
+    val readyKey: List<BoardSeat> get() = seats
+}
 
 /** 탑승 확인 중에 화면이 쌓는 값. */
 internal data class BoardDraft(
@@ -92,6 +97,8 @@ internal fun boardingOf(
         off.isNotEmpty() && (draft.warned || driving) -> BoardMode.BELT
         asking != null -> BoardMode.GUEST
         off.isNotEmpty() || cabin.present.isEmpty() -> BoardMode.WATCH
+        // 모두 맸어도 문이 열려 있으면 누가 아직 타는 중이다
+        cabin.openDoors.isNotEmpty() && !driving -> BoardMode.WATCH
         else -> BoardMode.READY
     }
     return BoardingUi(
@@ -100,6 +107,7 @@ internal fun boardingOf(
         heard = draft.heard.takeIf { mode == BoardMode.GUEST },
         listening = draft.listening && mode == BoardMode.GUEST,
         driving = driving, episode = episode,
+        doorOpen = cabin.openDoors.isNotEmpty(),
     )
 }
 

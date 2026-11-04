@@ -82,6 +82,13 @@ class BeltHoldTest {
     }
 
     @Test
+    fun `cabin keeps track of open doors while people get in`() {
+        val open = Cabin().on(SignalEvent.DoorOpened(Seat.REAR_LEFT)).on(SignalEvent.DoorOpened(Seat.DRIVER))
+        assertEquals(setOf(Seat.REAR_LEFT, Seat.DRIVER), open.openDoors)
+        assertEquals(setOf(Seat.DRIVER), open.on(SignalEvent.DoorClosed(Seat.REAR_LEFT)).openDoors)
+    }
+
+    @Test
     fun `a seat value after missing sensors counts as sensed`() {
         val cabin = Cabin().on(SignalEvent.SeatSensors(available = false))
             .on(SignalEvent.SeatChanged(Seat.DRIVER, occupied = true, buckled = true))

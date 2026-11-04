@@ -49,11 +49,22 @@ class QuestionRotationTest {
 
     @Test
     fun `no banned brand word and no game wording in host lines`() {
-        val lines = corners.flatMap { listOf(it.title, it.callOut) + it.variants } + BuiltinShow.callbackTemplates.values
+        val lines = corners.flatMap { listOf(it.title, it.callOut) + it.variants } +
+            BuiltinShow.callbackTemplates.values + BuiltinShow.callbackQuoteTemplates.values
         lines.forEach { line ->
             assertFalse(line, "이야기" in line)
+            assertFalse(line, "라디오" in line)
             assertFalse(line, "게임" in line)
             assertFalse(line, "퀴즈" in line)
+        }
+    }
+
+    @Test
+    fun `every callback corner can also quote a sentence answer`() {
+        assertEquals(BuiltinShow.callbackTemplates.keys, BuiltinShow.callbackQuoteTemplates.keys)
+        BuiltinShow.callbackQuoteTemplates.values.forEach { line ->
+            assertTrue(line, "{guest}" in line)
+            assertTrue(line, "'{keyword}'" in line)
         }
     }
 

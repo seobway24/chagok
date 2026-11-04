@@ -5,13 +5,14 @@ import androidx.lifecycle.viewModelScope
 import com.team.chagok.core.domain.show.Caption
 import com.team.chagok.core.domain.show.Cabin
 import com.team.chagok.core.domain.show.KeepStage
+import com.team.chagok.core.domain.show.PLAIN_GUEST_NAME
+import com.team.chagok.core.domain.show.plainGuest
 import com.team.chagok.core.domain.show.ShowEngine
 import com.team.chagok.core.domain.show.ShowInput
 import com.team.chagok.core.domain.show.ShowState
 import com.team.chagok.core.domain.signal.ManualSignalSource
 import com.team.chagok.core.model.AiSettings
 import com.team.chagok.core.model.Guest
-import com.team.chagok.core.model.GuestId
 import com.team.chagok.core.model.Seat
 import com.team.chagok.core.model.SignalEvent
 import kotlinx.coroutines.delay
@@ -179,7 +180,7 @@ class OnAirViewModel(
 
     private fun keepAsGuest() {
         val seat = askedSeat() ?: return
-        draft.update { it.copy(heard = null, guests = it.guests + (seat to GUEST_NAME)) }
+        draft.update { it.copy(heard = null, guests = it.guests + (seat to PLAIN_GUEST_NAME)) }
     }
 
     private fun beginShow() {
@@ -195,7 +196,7 @@ class OnAirViewModel(
     }
 
     private fun extrasOf(d: BoardDraft, cabin: Cabin): List<Guest> = d.guests.filterKeys { it in cabin.present }
-        .map { (seat, name) -> Guest(GuestId("guest-${seat.name}"), name, seat, appearances = 0, isChild = false) }
+        .map { (seat, name) -> plainGuest(seat, name) }
 
     /** 대기 화면의 방송 시작. 먼저 자리를 본다. */
     fun onStartClick() {
@@ -232,6 +233,5 @@ class OnAirViewModel(
     private companion object {
         const val STOP_TIMEOUT_MS = 5_000L
         const val BELT_GRACE_MS = 5_000L
-        const val GUEST_NAME = "손님"
     }
 }

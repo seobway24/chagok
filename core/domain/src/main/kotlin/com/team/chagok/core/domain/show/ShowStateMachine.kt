@@ -51,6 +51,8 @@ class ShowStateMachine(
         ShowInput.CornerDone -> cornerDone(state)
         ShowInput.ResumeDue -> resume(state)
         is ShowInput.BeltsChanged -> belts(state, input.unbuckled)
+        is ShowInput.Joined -> joined(state, input.guest, input.buckled)
+        ShowInput.WelcomeDone -> welcomeDone(state)
         ShowInput.QuietDue -> quiet(state)
         is ShowInput.EndingDone -> endingDone(state, input.atMillis)
         ShowInput.PlayOffered -> playOffered(state)
@@ -131,10 +133,14 @@ class ShowStateMachine(
         )
     }
 
-    /** 장면이 끝났다. 기다리는 신호의 코너를 앞에서부터 열고, 열 게 없으면 조용함 타이머를 건다. */
+    /**
+     * 장면이 끝났다. 늦게 탄 사람 환영 한 줄이 기다리면 그것부터, 다음은 기다리는 신호의 코너를 앞에서부터 열고,
+     * 열 게 없으면 조용함 타이머를 건다.
+     */
     private fun settle(state: OnAir): Transition {
         // 브레이크 중이거나 진정 중이면 기다리는 신호를 그대로 두고 뒤에 연다
         if (state.braking || state.calming) return Transition(state, listOf(scheduleQuiet(state)))
+        if (state.welcomes.isNotEmpty()) return greet(state, state.welcomes)
         val opened = state.pending.indices.firstNotNullOfOrNull { i ->
             val rest = state.copy(pending = state.pending.drop(i + 1))
             openCorner(rest, state.pending[i]).takeIf { it.state !== rest }
@@ -144,7 +150,7 @@ class ShowStateMachine(
 
     /** 조용함 타이머가 울렸다. 못 열면(브레이크·남은 코너 없음 등) 다시 기다린다. 마무리 중이면 채우지 않는다. */
     private fun quiet(state: ShowState): Transition {
-        if (state !is OnAir || state.live != null || state.wrappingUp) return Transition(state)
+        if (state !is OnAir || state.onStage || state.wrappingUp) return Transition(state)
         if (state.braking || state.calming) return Transition(state, listOf(scheduleQuiet(state)))
         val opened = openCorner(state, Cue(SignalCategory.QUIET))
         return if (opened.state === state) Transition(state, listOf(scheduleQuiet(state))) else opened
@@ -300,7 +306,7 @@ class ShowStateMachine(
 
     /** 지금 열 수 있으면 열고, 장면이 도는 중이거나 브레이크를 밟고 있거나 막 뗐으면 기다리게 둔다. */
     private fun onCue(state: ShowState, cue: Cue): Transition {
-        if (state is OnAir && state.live == null && !state.braking && !state.calming) return openCorner(state, cue)
+        if (state is OnAir && !state.onStage && !state.braking && !state.calming) return openCorner(state, cue)
         if (state is Opening) return Transition(state.copy(pending = state.pending.plusOnce(cue)))
         return updateOnAir(state) { if (it.canStillOpen(cue)) it.copy(pending = it.pending.plusOnce(cue)) else it }
     }
@@ -343,7 +349,8 @@ class ShowStateMachine(
     /** 진정 시간이 끝났다. 그동안 온 신호를 연다. */
     private fun calmDone(state: OnAir): Transition {
         val calm = state.copy(calming = false)
-        return if (calm.live == null && !calm.braking && calm.pending.isNotEmpty()) settle(calm) else Transition(calm)
+        val waiting = calm.pending.isNotEmpty() || calm.welcomes.isNotEmpty()
+        return if (!calm.onStage && !calm.braking && waiting) settle(calm) else Transition(calm)
     }
 
     /**
@@ -365,7 +372,7 @@ class ShowStateMachine(
         is Opening -> Transition(SafetyPaused(state.toOnAir()), listOf(InterruptCorner, CancelResume, CancelQuiet))
         is OnAir -> Transition(
             SafetyPaused(state.cutLive()),
-            listOfNotNull(InterruptCorner.takeIf { state.live != null }, CancelResume, CancelQuiet),
+            listOfNotNull(InterruptCorner.takeIf { state.onStage }, CancelResume, CancelQuiet),
         )
         is SafetyPaused -> Transition(state.copy(heldBySignal = true), listOf(CancelResume))
         is Ending -> cutEnding(state.copy(turnSignal = true))
@@ -380,6 +387,8 @@ class ShowStateMachine(
      * 단, 대답까지 들은 코너는 반응만 남았던 것이라 끝난 것으로 친다 — 다시 열면 같은 질문과 반응을 되풀이한다.
      */
     private fun OnAir.cutLive(): OnAir {
+        // 끊긴 환영 한 줄은 다시 기다리게 둔다. 재개하면 맨 먼저 다시 맞는다
+        if (greeting.isNotEmpty()) return copy(greeting = emptyList(), welcomes = greeting + welcomes).cutLive()
         val cut = live ?: return this
         if (answers.any { it.cornerId == cut.corner.id && it.guestId == cut.guest.id }) {
             return copy(live = null, playedCornerIds = playedCornerIds + cut.corner.id, turns = turns + cut.guest.id)
@@ -439,17 +448,66 @@ class ShowStateMachine(
             else -> return Transition(state)
         }
         val effects = listOfNotNull(
-            InterruptCorner.takeIf { onAir.live != null || state is Opening },
+            InterruptCorner.takeIf { onAir.onStage || state is Opening },
             CancelResume,
             CancelQuiet,
-            ShowEffect.PlayEnding(onAir.copy(live = null)),
+            ShowEffect.PlayEnding(onAir.offStage()),
         )
         val turnSignal = state is SafetyPaused && state.heldBySignal
-        return Transition(Ending(onAir.copy(live = null), turnSignal), effects)
+        return Transition(Ending(onAir.offStage(), turnSignal), effects)
+    }
+
+    private fun OnAir.offStage() = copy(live = null, greeting = emptyList(), welcomes = emptyList())
+
+    // ---- 늦게 탄 사람 ----
+
+    /**
+     * 방송 중 빈 자리에 누가 앉았다. 정차 중일 때만 명부에 넣는다 — 주행 중엔 받지 않는다(벨트 규칙은 그대로 돈다).
+     * 그 자리에 이미 출연자가 있거나 같은 사람이 있으면 넣지 않는다.
+     * 인사는 게스트 입장 코너로 그 사람을 부른다. 이번 회에 이미 했으면 이름을 불러 환영 한 줄만.
+     * 벨트를 아직 안 맸거나 지금 무대가 차 있으면 기다렸다가 한다.
+     */
+    private fun joined(state: ShowState, guest: Guest, buckled: Boolean): Transition = when (state) {
+        is Opening -> if (state.driving || state.roster.hasSeatOf(guest)) {
+            Transition(state)
+        } else {
+            Transition(state.copy(roster = state.roster + guest, pending = state.pending.plusOnce(entranceOf(guest))))
+        }
+        is OnAir -> if (state.driving || state.roster.hasSeatOf(guest)) Transition(state) else joinOnAir(state.copy(roster = state.roster + guest), guest, buckled)
+        is SafetyPaused -> {
+            val onAir = state.resumeTo
+            if (onAir.driving || onAir.roster.hasSeatOf(guest)) Transition(state) else Transition(state.copy(resumeTo = onAir.copy(roster = onAir.roster + guest).awaitGreeting(guest)))
+        }
+        else -> Transition(state)
+    }
+
+    private fun List<Guest>.hasSeatOf(guest: Guest) = any { it.seat == guest.seat || it.id == guest.id }
+
+    private fun entranceOf(guest: Guest) = Cue(SignalCategory.DOOR, guest.seat)
+
+    private fun joinOnAir(state: OnAir, guest: Guest, buckled: Boolean): Transition {
+        if (!buckled || state.onStage || state.braking || state.calming) return Transition(state.awaitGreeting(guest))
+        val entrance = entranceOf(guest)
+        if (state.canStillOpen(entrance)) return openCorner(state, entrance)
+        return greet(state, listOf(guest))
+    }
+
+    /** 무대가 빌 때 인사하도록 걸어 둔다. 게스트 입장 코너가 남아 있으면 그 코너를, 아니면 환영 한 줄을. */
+    private fun OnAir.awaitGreeting(guest: Guest): OnAir {
+        val entrance = entranceOf(guest)
+        return if (canStillOpen(entrance)) copy(pending = pending.plusOnce(entrance)) else copy(welcomes = welcomes + guest)
+    }
+
+    private fun greet(state: OnAir, guests: List<Guest>): Transition =
+        Transition(state.copy(greeting = guests, welcomes = state.welcomes - guests.toSet()), listOf(CancelQuiet, ShowEffect.PlayWelcome(guests)))
+
+    private fun welcomeDone(state: ShowState): Transition {
+        if (state !is OnAir || state.greeting.isEmpty()) return Transition(state)
+        return settle(state.copy(greeting = emptyList()))
     }
 
     private fun openCorner(state: ShowState, cue: Cue): Transition {
-        if (state !is OnAir || state.live != null || state.braking || state.calming) return Transition(state)
+        if (state !is OnAir || state.onStage || state.braking || state.calming) return Transition(state)
         // 마무리 중에는 도착 코너만 연다. 작별 인사 뒤에 터널 퀴즈가 이어지면 어색하다
         if (state.wrappingUp && cue.category != SignalCategory.ARRIVAL) return Transition(state)
         // 지난 회 이어 묻기가 먼저. 운전자의 말이 필요한 코너는 정차 중에만 연다.

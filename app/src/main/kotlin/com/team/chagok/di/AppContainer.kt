@@ -234,7 +234,7 @@ class AppContainer(context: Context) {
                     RuleFactExtractor(),
                 ),
             ),
-            planner = CallbackPlanner(BuiltinShow.callbackTemplates, accept = ::safeText),
+            planner = CallbackPlanner(BuiltinShow.callbackTemplates, accept = ::safeText, quoteTemplates = BuiltinShow.callbackQuoteTemplates),
             digestWriter = RemoteDigestWriter({ remoteConfig }, PrivacyGate(egressLog), ::safeText),
             // 시연 모드만 시연 가족 카드로 시작한다. 실제 빌드는 빈 명부 → 정차 화면에서 사람을 추가
             load = {

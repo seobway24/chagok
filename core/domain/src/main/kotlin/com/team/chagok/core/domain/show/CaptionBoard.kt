@@ -7,6 +7,7 @@ import com.team.chagok.core.domain.port.MicInput
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration
 
 /** 화면 자막 한 줄. 진행자가 읽는 말이거나 방금 들은 대답. */
@@ -21,9 +22,18 @@ class CaptionBoard {
     val current: StateFlow<Caption?> = _current.asStateFlow()
 
     fun voice(inner: HostVoice): HostVoice = object : HostVoice {
+        /** 끊긴 줄(깜빡이·장면 취소)은 자막에서 내린다. 말하지 않은 반응이 정차 화면에 글자로 남지 않게. */
         override suspend fun speak(text: String, speaker: String, zone: AudioZone): Boolean {
-            _current.value = Caption(text, fromHost = true)
-            return inner.speak(text, speaker, zone)
+            val caption = Caption(text, fromHost = true)
+            _current.value = caption
+            val spoken = try {
+                inner.speak(text, speaker, zone)
+            } catch (e: CancellationException) {
+                _current.compareAndSet(caption, null)
+                throw e
+            }
+            if (!spoken) _current.compareAndSet(caption, null)
+            return spoken
         }
 
         override fun stop() = inner.stop()

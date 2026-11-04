@@ -100,6 +100,7 @@ class FamilyEpisodeSimulationTest {
             planner = CallbackPlanner(
                 BuiltinShow.callbackTemplates,
                 accept = { filter.accept(it, maxChars = 200, kidSafe = true) != null },
+                quoteTemplates = BuiltinShow.callbackQuoteTemplates,
             ),
         )
         engine = ShowEngine(

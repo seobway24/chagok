@@ -128,7 +128,12 @@ internal fun ShowState.toUiState(caption: Caption? = null, profile: FamilyProfil
             phase = OnAirUiState.Phase.OFFER,
             episode = opening.episode,
             driving = opening.driving,
-            offer = OfferUi(clip.toUi(), clip.signal == SignalCategory.RAIN, playing),
+            // "오늘도 비가 와서 골랐어요" 는 이번 회에 비 신호가 있을 때만. 비 오는 날 목소리라는 것만으로는 아니다
+            offer = OfferUi(
+                clip.toUi(),
+                rainy = clip.signal == SignalCategory.RAIN && opening.pending.any { it.category == SignalCategory.RAIN },
+                playing = playing,
+            ),
         )
         is ShowState.Keepsake -> OnAirUiState(
             phase = OnAirUiState.Phase.KEEP,

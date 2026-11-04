@@ -14,24 +14,28 @@ class TemplateQuip(
 
     override val id: String = ID
 
-    /** 이미 쓴 틀. 묶음을 다 쓰기 전에는 같은 문장을 다시 꺼내지 않는다 — 두 번째부터 기계처럼 들린다. */
-    private val used = mutableSetOf<String>()
+    /**
+     * 틀마다 마지막으로 쓴 차례. 안 쓴 틀 → 가장 오래전에 쓴 틀 순으로 꺼낸다 — 두 번째부터 기계처럼 들린다.
+     * 묶음을 다 써도 통째로 비우지 않는다: 비우고 아무거나 고르면 방금 한 말이 바로 다시 나왔다(제14회 "하이라이트 확정!" 두 번).
+     */
+    private val lastUsed = mutableMapOf<String, Long>()
+    private var turn = 0L
 
     override suspend fun quip(request: QuipRequest): QuipResult {
         val reaction = if (request.utterance.isBlank()) Reaction.SILENT else Reaction.ANSWERED
-        val line = pickFresh(book.linesFor(request.cornerId, request.skinId, reaction))
+        // 짧은 대답만 되받는다. 문장 대답은 {answer} 가 없는 줄로 받아친다
+        val echo = QuipText.echoOf(request.utterance)
+        val line = pickFresh(book.linesFor(request.cornerId, request.skinId, reaction, echo = echo != null))
             .replace(GUEST, request.speaker)
-            .replace(ANSWER, request.utterance)
+            .replace(ANSWER, echo ?: request.utterance)
             .take(request.maxChars)
         return QuipResult.Line(line, id, latencyMs = 0)
     }
 
     private fun pickFresh(lines: List<String>): String {
-        val fresh = lines.filterNot { it in used }.ifEmpty {
-            used.removeAll(lines.toSet())
-            lines
-        }
-        return fresh.random(random).also { used += it }
+        val oldest = lines.minOf { lastUsed[it] ?: -1L }
+        val fresh = lines.filter { (lastUsed[it] ?: -1L) == oldest }
+        return fresh.random(random).also { lastUsed[it] = turn++ }
     }
 
     companion object {
@@ -58,10 +62,19 @@ class TemplateBook(
         Reaction.entries.forEach { require(!common[it].isNullOrEmpty()) { "공용 대사 없음: $it" } }
     }
 
-    fun linesFor(cornerId: String, skinId: String, reaction: Reaction): List<String> =
-        lines[Key(cornerId, skinId, reaction)]
+    /**
+     * @param echo false 면 대답을 되받지 않는 줄({answer} 없음)만. 그 묶음에 없으면 공용에서,
+     *  공용에도 없으면 원래 묶음 그대로 준다(비어 있으면 안 되므로).
+     */
+    fun linesFor(cornerId: String, skinId: String, reaction: Reaction, echo: Boolean = true): List<String> {
+        val pool = lines[Key(cornerId, skinId, reaction)]
             ?: lines[Key(cornerId, DEFAULT_SKIN, reaction)]
             ?: common.getValue(reaction)
+        if (echo) return pool
+        return pool.withoutAnswer().ifEmpty { common.getValue(reaction).withoutAnswer() }.ifEmpty { pool }
+    }
+
+    private fun List<String>.withoutAnswer() = filterNot { TemplateQuip.ANSWER in it }
 
     companion object {
         const val DEFAULT_SKIN = "basic"

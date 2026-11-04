@@ -158,6 +158,22 @@ object BuiltinShow {
         "arrival" to "지난 회 도착 직전, {guest}의 한 줄은 {keyword}! 오늘은 어떤 하루였어요?",
     )
 
+    /**
+     * 지난 대답이 이름이 아니라 문장일 때("아플 때 다들 죽 끓여 준 거요") 쓰는 틀. 키는 [callbackTemplates] 와 같다.
+     * 이름 칸에 문장을 끼우면 "대답은 …끓여 준!" 이 된다 → 따옴표로 그대로 옮기고, 뒤에 조사를 붙이지 않는다.
+     */
+    val callbackQuoteTemplates: Map<String, String> = linkedMapOf(
+        "dream" to "지난 회 {guest}의 꿈, 기억나요? '{keyword}'. 그 꿈, 오늘은 조금 더 자세히 들려줄래요?",
+        "best-moment" to "지난 회 오늘의 순간, {guest}의 대답 기억나요? '{keyword}'. 오늘은 그걸 이길 순간이 있었어요?",
+        "tunnel" to "지난 회 터널 토크, {guest}의 대답 기억나요? '{keyword}'. 그 뒤로 어떻게 됐어요?",
+        "milestone" to "지난 회 주행 특집, {guest}의 대답 기억나요? '{keyword}'. 그거 조금 더 자세히 알려 줄래요?",
+        "balance" to "지난 회 {guest}의 선택, 기억나요? '{keyword}'. 오늘도 그대로예요, 아니면 바뀌었어요?",
+        "family-quiz" to "지난 회 {guest}의 투표, 기억나요? '{keyword}'. 오늘도 같은 사람이에요?",
+        "captain" to "지난 회 캡틴 {guest}의 한마디, 기억나요? '{keyword}'. 오늘은 어때요?",
+        "weather" to "지난 회 {guest} 캐스터의 기상 특보, 기억나요? '{keyword}'. 오늘 날씨는 몇 점이에요?",
+        "arrival" to "지난 회 도착 직전, {guest}의 한 줄 기억나요? '{keyword}'. 오늘은 어떤 하루였어요?",
+    )
+
     val cornerTitles: Map<String, String>
         get() = basicPack.corners.associate { it.id to it.title } + ("farewell" to "하차 한마디")
 
@@ -170,41 +186,51 @@ object BuiltinShow {
 
     val templates = TemplateBook(
         lines = mapOf(
-            // 같은 묶음 안 문장은 다 쓸 때까지 다시 안 나온다(TemplateQuip). 대답 낱말을 되받는 짧은 반응 위주
+            // 같은 묶음 안 문장은 다 쓸 때까지 다시 안 나온다(TemplateQuip).
+            // {answer} 는 대답의 짧은 첫 마디("떡볶이요")라 말투가 그대로다 → 줄 맨 앞에서만 되받는다.
+            // 문장 대답은 되받지 않으므로 묶음마다 {answer} 없는 줄을 하나 이상 둔다.
             Key("weather", "basic", Reaction.ANSWERED) to listOf(
                 "{answer}! {guest} 캐스터의 정확한 예보였습니다~",
-                "{guest} 캐스터 피셜 {answer}, 와이퍼도 박수 칩니다!",
+                "{guest} 캐스터의 현장 예보, 와이퍼도 박수 칩니다!",
                 "{answer}, 기상청도 받아 적겠어요.",
-                "빗속 현장 연결, {guest} 캐스터 {answer}! 수고했어요.",
+                "빗속 현장 연결 끝! {guest} 캐스터, 수고했어요.",
             ),
             Key("weather", "hiphop", Reaction.ANSWERED) to listOf(
-                "Yo {guest}, {answer}! 빗소리가 비트, 와이퍼는 드럼!",
+                "{answer}! Yo {guest}, 빗소리가 비트, 와이퍼는 드럼!",
+                "Yo {guest}, 빗소리가 비트, 와이퍼는 드럼!",
             ),
             Key("balance", "basic", Reaction.ANSWERED) to listOf(
-                "{guest}의 선택은 {answer}! 망설임이 없네요.",
-                "{answer} 팀 한 명 추가요! 다른 분들은 어느 쪽?",
-                "오, {answer}! {guest} 취향 확실히 알았습니다.",
+                "{answer}! {guest}, 망설임이 없네요.",
+                "{answer}! 한 표 추가요. 다른 분들은 어느 쪽?",
+                "{guest} 취향 확실히 알았습니다. 다른 분들은 어느 쪽?",
             ),
             Key("dream", "basic", Reaction.ANSWERED) to listOf(
                 "{answer}! {guest}의 꿈, 이번 회 기록에 꼭 남겨 둘게요.",
                 "{answer}, 멋지다! 그날 첫 손님은 우리 가족이에요.",
-                "{guest}의 꿈은 {answer}. 다음 회에 또 물어볼게요!",
+                "멋진 꿈이에요, {guest}! 다음 회에 또 물어볼게요.",
             ),
             Key("family-quiz", "basic", Reaction.ANSWERED) to listOf(
                 "{answer}! {guest}의 한 표 들어왔습니다.",
-                "{answer}에게 한 표! 다른 분들 생각은요?",
+                "{guest}의 한 표 들어왔습니다. 다른 분들 생각은요?",
             ),
         ),
         common = mapOf(
             Reaction.ANSWERED to listOf(
                 "{answer}! 역시 {guest}, 오늘의 명언 등록입니다.",
-                "{guest}의 한마디, {answer}. 이번 회 하이라이트 확정!",
                 "{answer}! 그거 좋다.",
                 "오, {answer}? {guest} 답다!",
                 "{answer}, 메모해 둘게요.",
-                "{guest} 덕분에 차 안이 환해졌어요. {answer}!",
                 "{answer}! 다들 들었죠?",
-                "{answer}, 그 대답 기다렸어요.",
+                "{guest} 덕분에 차 안이 환해졌어요.",
+                "그 대답 기다렸어요, {guest}!",
+                "역시 {guest}, 이번 회 하이라이트 확정!",
+                // 문장 대답은 아래처럼 {answer} 없는 줄만 쓴다. 한 회 반응 수(8~10)보다 많아야 한 회 안에서 안 겹친다
+                "좋은 대답이에요, {guest}. 다들 고개 끄덕이는 중!",
+                "{guest}, 오늘 말솜씨 최고예요.",
+                "이 대답, 오늘 회차에 꼭 남겨 둘게요.",
+                "{guest}의 대답에 차 안 분위기가 확 살았어요.",
+                "오, 그렇게 생각했구나! {guest}, 멋져요.",
+                "{guest} 표 대답, 잘 들었습니다!",
             ),
             Reaction.SILENT to listOf(
                 "{guest}, 오늘은 수줍음 모드네요. 다음 코너에서 만나요!",

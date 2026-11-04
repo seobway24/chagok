@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * 단일 actor. 모든 입력을 한 줄로 세워 [ShowStateMachine] 에 넣고, 나온 효과만 실행한다.
@@ -59,10 +60,20 @@ class ShowEngine(
 
     private suspend fun route(event: SignalEvent) {
         if (event is SignalEvent.SeatSensors || event is SignalEvent.SeatChanged) {
-            val before = _cabin.value.unbuckled
-            _cabin.value = _cabin.value.on(event)
-            if (_cabin.value.unbuckled != before) inbox.send(ShowInput.BeltsChanged(_cabin.value.unbuckled))
+            val before = _cabin.value
+            val after = before.on(event)
+            _cabin.value = after
+            // 방송 중에 빈 자리가 찼다 → 늦게 탄 사람. 받을지(정차 중인지)는 상태 머신이 정한다.
+            // 벨트 안내가 이름을 부르도록 벨트 변화보다 먼저 넣는다
+            if (_state.value !is ShowState.Idle) {
+                (after.present - before.present.toSet()).forEach { seat ->
+                    inbox.send(ShowInput.Joined(boarderAt(seat), buckled = seat !in after.unbuckled))
+                }
+            }
+            if (after.unbuckled != before.unbuckled) inbox.send(ShowInput.BeltsChanged(after.unbuckled))
         } else {
+            // 문은 탑승 확인(아직 타는 중)도 보고 코너 신호(게스트 입장)로도 쓴다
+            if (event is SignalEvent.DoorOpened || event is SignalEvent.DoorClosed) _cabin.value = _cabin.value.on(event)
             inbox.send(ShowInput.Signal(event))
         }
     }
@@ -83,8 +94,28 @@ class ShowEngine(
         inbox.send(ShowInput.Start(episode, roster, clock(), callbacks, offer, voices?.canKeep() == true, beltOff))
     }
 
-    /** 탑승 확인 중 안내. 방송이 아니라 말만 한다. */
-    suspend fun remindBelt(names: List<String>) = director.belt(names)
+    /**
+     * 탑승 확인과 같은 규칙: 그 자리 가족 카드가 있으면 그 사람, 없으면 손님.
+     * 그 카드의 사람이 이미 다른 자리에서 출연 중이면 이 자리 사람은 모르는 사람이다 → 손님.
+     */
+    private suspend fun boarderAt(seat: Seat): Guest {
+        val onAir = currentRoster().map { it.id }.toSet()
+        return studio.roster().firstOrNull { it.seat == seat && it.id !in onAir } ?: plainGuest(seat)
+    }
+
+    /**
+     * 탑승 확인 중 안내. 방송이 아니라 말만 한다.
+     * 부른 쪽이 취소하면(그 사이 모두 맸다) 읽던 줄도 그 자리에서 끊는다 — 차 TTS 는 넘겨받은 줄을
+     * 코루틴과 상관없이 끝까지(대기 줄까지) 읽어서, 다 맨 뒤에도 "벨트 매 주세요" 가 나왔다.
+     */
+    suspend fun remindBelt(names: List<String>) {
+        try {
+            director.belt(names)
+        } catch (e: CancellationException) {
+            director.interrupt()
+            throw e
+        }
+    }
 
     suspend fun askName(seat: Seat): String? = director.askName(seat)
 
@@ -105,6 +136,7 @@ class ShowEngine(
             is ShowEffect.PlayEnding -> scene(done = { ShowInput.EndingDone(clock()) }) {
                 director.ending(effect.onAir)?.let { inbox.send(ShowInput.Answered(it)) }
             }
+            is ShowEffect.PlayWelcome -> scene(done = { ShowInput.WelcomeDone }) { director.welcome(effect.guests) }
             ShowEffect.CutEnding -> {
                 sceneJob?.cancel()
                 director.interrupt()
